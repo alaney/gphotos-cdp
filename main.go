@@ -162,6 +162,7 @@ func (s *Session) NewContext() (context.Context, context.CancelFunc) {
 		chromedp.Flag("enable-automation", true),
 		chromedp.Flag("disable-web-security", true),
 		chromedp.Flag("allow-running-insecure-content", true),
+		chromedp.Flag("headless", true),
 	}
 
 	if !*headlessFlag {
