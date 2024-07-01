@@ -158,6 +158,7 @@ func (s *Session) NewContext() (context.Context, context.CancelFunc) {
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.NoFirstRun,
 		chromedp.NoDefaultBrowserCheck,
+		chromedp.UserDataDir("/mnt/raid1/config"),
 		chromedp.Flag("enable-automation", true),
 		chromedp.Flag("disable-web-security", true),
 		chromedp.Flag("allow-running-insecure-content", true),
