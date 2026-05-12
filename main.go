@@ -236,9 +236,9 @@ func (s *Session) login(ctx context.Context) error {
 				if location == "https://photos.google.com/" {
 					return nil
 				}
-				if *headlessFlag {
-					return errors.New("authentication not possible in -headless mode")
-				}
+				// if *headlessFlag {
+				// 	return errors.New("authentication not possible in -headless mode")
+				// }
 				if *verboseFlag {
 					log.Printf("Not yet authenticated, at: %v", location)
 				}
