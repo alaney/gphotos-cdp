@@ -73,9 +73,9 @@ func main() {
 
 	log.Printf("Session Dir: %v", s.profileDir)
 
-	if err := s.cleanDlDir(); err != nil {
-		log.Fatal(err)
-	}
+	// if err := s.cleanDlDir(); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	ctx, cancel := s.NewContext()
 	defer cancel()
@@ -158,7 +158,7 @@ func (s *Session) NewContext() (context.Context, context.CancelFunc) {
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.NoFirstRun,
 		chromedp.NoDefaultBrowserCheck,
-		chromedp.UserDataDir("/mnt/raid1/config"),
+		chromedp.UserDataDir(s.profileDir),
 		chromedp.Flag("enable-automation", true),
 		chromedp.Flag("disable-web-security", true),
 		chromedp.Flag("allow-running-insecure-content", true),
@@ -544,9 +544,9 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 		if len(fileEntries) < 1 {
 			continue
 		}
-		if len(fileEntries) > 1 {
-			return "", fmt.Errorf("more than one file (%d) in download dir %q", len(fileEntries), s.dlDir)
-		}
+		// if len(fileEntries) > 1 {
+		// 	return "", fmt.Errorf("more than one file (%d) in download dir %q", len(fileEntries), s.dlDir)
+		// }
 		if !started {
 			if len(fileEntries) > 0 {
 				started = true
@@ -597,7 +597,8 @@ func (s *Session) dlAndMove(ctx context.Context, location string) (string, error
 	if err != nil {
 		return "", err
 	}
-	return s.moveDownload(ctx, dlFile, location)
+	// return s.moveDownload(ctx, dlFile, location)
+	return filepath.Join(s.dlDir, dlFile), nil
 }
 
 var (
