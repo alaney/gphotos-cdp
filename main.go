@@ -43,13 +43,14 @@ import (
 )
 
 var (
-	nItemsFlag   = flag.Int("n", -1, "number of items to download. If negative, get them all.")
-	devFlag      = flag.Bool("dev", false, "dev mode. we reuse the same session dir (/tmp/gphotos-cdp), so we don't have to auth at every run.")
-	dlDirFlag    = flag.String("dldir", "", "where to write the downloads. defaults to $HOME/Downloads/gphotos-cdp.")
-	startFlag    = flag.String("start", "", "skip all photos until this location is reached. for debugging.")
-	runFlag      = flag.String("run", "", "the program to run on each downloaded item, right after it is dowloaded. It is also the responsibility of that program to remove the downloaded item, if desired.")
-	verboseFlag  = flag.Bool("v", false, "be verbose")
-	headlessFlag = flag.Bool("headless", false, "Start chrome browser in headless mode (cannot do authentication this way).")
+	nItemsFlag     = flag.Int("n", -1, "number of items to download. If negative, get them all.")
+	devFlag        = flag.Bool("dev", false, "dev mode. we reuse the same session dir (/tmp/gphotos-cdp), so we don't have to auth at every run.")
+	profileDirFlag = flag.String("profileDir", "", "Chromium profile directory")
+	dlDirFlag      = flag.String("dldir", "", "where to write the downloads. defaults to $HOME/Downloads/gphotos-cdp.")
+	startFlag      = flag.String("start", "", "skip all photos until this location is reached. for debugging.")
+	runFlag        = flag.String("run", "", "the program to run on each downloaded item, right after it is dowloaded. It is also the responsibility of that program to remove the downloaded item, if desired.")
+	verboseFlag    = flag.Bool("v", false, "be verbose")
+	headlessFlag   = flag.Bool("headless", false, "Start chrome browser in headless mode (cannot do authentication this way).")
 )
 
 var tick = 500 * time.Millisecond
@@ -121,18 +122,11 @@ func getLastDone(dlDir string) (string, error) {
 }
 
 func NewSession() (*Session, error) {
-	var dir string
-	if *devFlag {
-		dir = filepath.Join(os.TempDir(), "gphotos-cdp")
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			return nil, err
-		}
-	} else {
-		var err error
-		dir, err = ioutil.TempDir("", "gphotos-cdp")
-		if err != nil {
-			return nil, err
-		}
+	profileDir := *profileDirFlag
+	if profileDir == "" {
+
+		profileDir = filepath.Join(os.TempDir(), "gphotos-cdp")
+
 	}
 	dlDir := *dlDirFlag
 	if dlDir == "" {
@@ -141,12 +135,15 @@ func NewSession() (*Session, error) {
 	if err := os.MkdirAll(dlDir, 0700); err != nil {
 		return nil, err
 	}
+	if err := os.MkdirAll(profileDir, 0700); err != nil {
+		return nil, err
+	}
 	lastDone, err := getLastDone(dlDir)
 	if err != nil {
 		return nil, err
 	}
 	s := &Session{
-		profileDir: dir,
+		profileDir: profileDir,
 		dlDir:      dlDir,
 		lastDone:   lastDone,
 	}
@@ -502,7 +499,7 @@ func startDownload(ctx context.Context) error {
 	return nil
 }
 
-// dowload starts the download of the currently viewed item, and on successful
+// download starts the download of the currently viewed item, and on successful
 // completion saves its location as the most recent item downloaded. It returns
 // with an error if the download stops making any progress for more than a minute.
 func (s *Session) download(ctx context.Context, location string) (string, error) {
@@ -544,9 +541,26 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 		if len(fileEntries) < 1 {
 			continue
 		}
-		// if len(fileEntries) > 1 {
-		// 	return "", fmt.Errorf("more than one file (%d) in download dir %q", len(fileEntries), s.dlDir)
-		// }
+		if len(fileEntries) > 1 {
+			finalFiles := []os.FileInfo{}
+			for _, f := range fileEntries {
+				if !strings.HasSuffix(f.Name(), ".crdownload") {
+					finalFiles = append(finalFiles, f)
+				}
+			}
+
+			// If we found exactly one finished file, use that and ignore the .crdownload ghost
+			if len(finalFiles) == 1 {
+				fileEntries = finalFiles
+			} else {
+				// If it's truly more than one unique photo, then we log and exit
+				log.Printf("CRITICAL: True collision detected in %q", s.dlDir)
+				for _, f := range fileEntries {
+					log.Printf(" -> FOUND: %s", f.Name())
+				}
+				os.Exit(1)
+			}
+		}
 		if !started {
 			if len(fileEntries) > 0 {
 				started = true
@@ -594,11 +608,11 @@ func (s *Session) moveDownload(ctx context.Context, dlFile, location string) (st
 
 func (s *Session) dlAndMove(ctx context.Context, location string) (string, error) {
 	dlFile, err := s.download(ctx, location)
+	log.Printf("Downloaded file %v", dlFile)
 	if err != nil {
 		return "", err
 	}
-	// return s.moveDownload(ctx, dlFile, location)
-	return filepath.Join(s.dlDir, dlFile), nil
+	return s.moveDownload(ctx, dlFile, location)
 }
 
 var (
